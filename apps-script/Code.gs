@@ -1,4 +1,4 @@
-/** TOTAL ENG attendance — private Google Sheets backend, v2.0.0.
+/** TOTAL ENG attendance — private Google Sheets backend, v2.1.0.
  * Paste into the bound Apps Script project. Keep the spreadsheet restricted.
  * Run setupApp from the editor, then use its private setup dialog.
  */
@@ -10,6 +10,93 @@ var TE_TABLES = {
   '로그인제한': ['검색키','시도수','만료시각'],
   '접근기록': ['구분','대상ID','일시']
 };
+var TE_RECORD_VIEW = ['작업자명','날짜','공수','적용일당','예상노임','현장','작업내용','수정일시','작업자ID'];
+var TE_NUMERIC_HEADERS = ['공수','적용일당','예상노임','일당','근무일수','휴무일수','합계공수','예상노임(공제전)','일당미설정건수'];
+
+function upgradeSheetViews(){
+  teOwner_();var lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{teUpgradeViews_();teAudit_('owner.upgrade-sheet-views','');}finally{lock.releaseLock();}
+}
+
+function teHeaders_(sheet){return sheet.getRange(1,1,1,sheet.getLastColumn()).getDisplayValues()[0];}
+function teStyleSheet_(sheet,headers,hidden){
+  var rows=Math.max(sheet.getLastRow(),1),width=headers.length;
+  sheet.getRange(1,1,rows,width).setFontFamily('Arial').setFontSize(11).setVerticalAlignment('middle');
+  sheet.getRange(1,1,1,width).setBackground('#003d8e').setFontColor('#ffffff').setFontWeight('bold').setWrap(true);
+  sheet.setFrozenRows(1);sheet.setRowHeight(1,38);sheet.setTabColor('#003d8e');
+  for(var col=0;col<width;col++){
+    var h=headers[col],size=h==='작업내용'?280:h==='수정일시'||h==='등록일시'||h==='동의일시'?185:h.indexOf('확인')>=0?240:135;
+    sheet.setColumnWidth(col+1,size);
+    if(rows>1){
+      var range=sheet.getRange(2,col+1,rows-1,1);
+      if(TE_NUMERIC_HEADERS.indexOf(h)>=0)range.setNumberFormat(h==='공수'||h==='합계공수'?'0.##':'#,##0').setHorizontalAlignment('right');
+      if(h==='작업내용'||h==='확인사항')range.setWrap(true);
+    }
+  }
+  if(rows>1){sheet.setRowHeights(2,rows-1,32);sheet.autoResizeRows(2,rows-1);}
+  if(!sheet.getFilter())sheet.getRange(1,1,Math.max(2,rows),width).createFilter();
+  (hidden||[]).forEach(function(col){sheet.hideColumns(col,1);});
+}
+
+function teUpgradeViews_(){
+  var book=SpreadsheetApp.openById(TE_SHEET_ID),workers=teRows_('작업자'),records=teRows_('근태기록'),names={};
+  workers.forEach(function(w){names[w.v[0]]=w.v[1];});
+  var sheet=teSheet_('근태기록'),headers=teHeaders_(sheet),original=TE_TABLES['근태기록'];
+  if(JSON.stringify(headers)!==JSON.stringify(original)&&JSON.stringify(headers)!==JSON.stringify(TE_RECORD_VIEW))teFail_(409,'근태기록의 머리글이 예상 구조와 다릅니다. 기존 데이터를 먼저 확인해 주세요.');
+  var migrating=JSON.stringify(headers)!==JSON.stringify(TE_RECORD_VIEW);
+  if(migrating){
+    var stamp=new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14);
+    sheet.copyTo(book).setName('백업_근태_'+stamp).hideSheet();
+    var filter=sheet.getFilter();if(filter)filter.remove();
+    var output=[TE_RECORD_VIEW].concat(records.map(function(r){var v=r.v,rate=v[3]===''?null:Number(v[3]),units=Number(v[2]);return [names[v[0]]||'미등록 작업자',v[1],units,rate===null?'':rate,units===0?0:rate===null?'':Math.round(units*rate),v[4],v[5],v[6],v[0]];}));
+    teSetGrid_(sheet,1,output,TE_RECORD_VIEW);
+    PropertiesService.getScriptProperties().setProperty('SHEET_VIEW_VERSION','2');
+  }else{
+    records.forEach(function(r){teWrite_('근태기록',r.row,r.v,names);});
+  }
+  teStyleSheet_(sheet,TE_RECORD_VIEW,[9]);
+  var workerSheet=teSheet_('작업자');teStyleSheet_(workerSheet,TE_TABLES['작업자'],[1,7,8,9,10,11,14,15]);
+  PropertiesService.getScriptProperties().setProperty('SHEET_VIEW_VERSION','2');
+}
+
+function teSetGrid_(sheet,start,rows,headers){
+  var safe=rows.map(function(row,index){return row.map(function(value,col){
+    if(index+start>1&&TE_NUMERIC_HEADERS.indexOf(headers[col])>=0&&value!==''&&value!==null&&isFinite(Number(value)))return Number(value);
+    var s=value===null||value===undefined?'':String(value);return /^[=+@-]/.test(s)?"'"+s:s;
+  });});
+  sheet.getRange(start,1,safe.length,headers.length).setNumberFormat('@').setValues(safe);
+  var bodyStart=Math.max(start,2),bodyCount=safe.length-(start===1?1:0);
+  if(bodyCount>0){
+    sheet.getRange(bodyStart,1,bodyCount,headers.length).setFontFamily('Arial').setFontSize(11);
+    headers.forEach(function(h,col){if(TE_NUMERIC_HEADERS.indexOf(h)>=0)sheet.getRange(bodyStart,col+1,bodyCount,1).setNumberFormat(h==='공수'||h==='합계공수'?'0.##':'#,##0');});
+  }
+}
+
+function teMonthlyReport_(month){
+  month=teMonth_(month);var props=PropertiesService.getScriptProperties();
+  if(props.getProperty('SHEET_VIEW_VERSION')!=='2')teUpgradeViews_();
+  var book=SpreadsheetApp.openById(TE_SHEET_ID),name='정산_'+month,existing=book.getSheetByName(name),property='MONTHLY_REPORT_'+month;
+  if(existing&&props.getProperty(property)!==String(existing.getSheetId()))teFail_(409,'같은 이름의 수동 작성 탭이 있습니다. '+name+' 탭의 이름을 바꾼 뒤 다시 생성해 주세요.');
+  var headers=['작업자명','전화번호','은행','계좌(가림)','근무일수','휴무일수','합계공수','예상노임(공제전)','일당미설정건수','확인사항','작업자ID'];
+  var grouped={},workers=teRows_('작업자'),all=teRows_('근태기록');
+  all.forEach(function(r){if(r.v[1].slice(0,7)===month){if(!grouped[r.v[0]])grouped[r.v[0]]=[];grouped[r.v[0]].push(teRecordView_(r));}});
+  var totalDays=0,totalRest=0,totalUnits100=0,totalAmount=0,totalUnpriced=0;
+  var data=workers.slice().sort(function(a,b){return a.v[1].localeCompare(b.v[1],'ko')||a.v[0].localeCompare(b.v[0]);}).map(function(w){
+    var v=w.v,list=grouped[v[0]]||[],days=list.filter(function(r){return r.units>0;}).length,rest=list.filter(function(r){return r.units===0;}).length;
+    var units100=list.reduce(function(s,r){return s+Math.round(r.units*100);},0),amount=list.reduce(function(s,r){return s+(r.amount===null?0:r.amount);},0),unpriced=list.filter(function(r){return r.units>0&&r.amount===null;}).length;
+    totalDays+=days;totalRest+=rest;totalUnits100+=units100;totalAmount+=amount;totalUnpriced+=unpriced;
+    return [v[1],v[3],v[4],'•••• '+v[5],days,rest,units100/100,amount,unpriced,unpriced?'일당 미설정 '+unpriced+'건 금액 제외':list.length?'':'기록 없음',v[0]];
+  });
+  var sheet=existing||book.insertSheet(name),filter=sheet.getFilter();if(filter)filter.remove();
+  if(existing)sheet.getRange(1,1,Math.max(sheet.getLastRow(),1),headers.length).clearContent();
+  var totalRow=['합계','','','',totalDays,totalRest,totalUnits100/100,totalAmount,totalUnpriced,totalUnpriced?'미설정 기록은 금액 합계에서 제외':'공제 전 예상 노임',''];
+  teSetGrid_(sheet,1,[headers].concat(data,[totalRow]),headers);teStyleSheet_(sheet,headers,[11]);
+  if(sheet.getFilter())sheet.getFilter().remove();sheet.getRange(1,1,Math.max(data.length+1,2),headers.length).createFilter();
+  sheet.getRange(data.length+2,1,1,headers.length).setBackground('#fff0d6').setFontWeight('bold');
+  var generated=new Date().toISOString();sheet.getRange(data.length+4,1,1,1).setValue('생성: '+generated+' · 세금·공제·실지급액은 포함하지 않은 예상 정산표');
+  props.setProperty(property,String(sheet.getSheetId()));teAudit_('admin.monthly-report',month);
+  return {month:month,sheetName:name,url:book.getUrl()+'#gid='+sheet.getSheetId(),workerCount:workers.length,totalUnits:totalUnits100/100,totalAmount:totalAmount,unpricedCount:totalUnpriced,generatedAt:generated};
+}
 
 function setupApp() {
   teOwner_();
@@ -61,7 +148,7 @@ function saveInitialSetup(input){
   } finally {lock.releaseLock();}
 }
 
-function doGet(){return teOutput_({ok:true,app:'TOTAL ENG 근태 관리',version:'2.0.0',configured:PropertiesService.getScriptProperties().getProperty('CONFIGURED')==='true'});}
+function doGet(){return teOutput_({ok:true,app:'TOTAL ENG 근태 관리',version:'2.1.0',configured:PropertiesService.getScriptProperties().getProperty('CONFIGURED')==='true'});}
 function doPost(e){
   var lock=LockService.getScriptLock();
   try {
@@ -89,8 +176,12 @@ function teMac_(scope,value){return teHex_(Utilities.computeHmacSha256Signature(
 function teEqual_(a,b){a=String(a);b=String(b);if(a.length!==b.length)return false;var diff=0;for(var i=0;i<a.length;i++)diff|=a.charCodeAt(i)^b.charCodeAt(i);return diff===0;}
 function tePasswordCheck_(id,pin){return teMac_('password',id+'|'+pin);}
 function teSheet_(name){var sheet=SpreadsheetApp.openById(TE_SHEET_ID).getSheetByName(name);if(!sheet)teFail_(503,'먼저 setupApp을 실행해 주세요.');return sheet;}
-function teRows_(name){var sheet=teSheet_(name);return sheet.getLastRow()<2?[]:sheet.getRange(2,1,sheet.getLastRow()-1,TE_TABLES[name].length).getDisplayValues().map(function(values,i){return {row:i+2,v:values};});}
-function teWrite_(name,row,values){var sheet=teSheet_(name),safe=values.map(function(v){var s=v===null||v===undefined?'':String(v);return /^[=+@-]/.test(s)?"'"+s:s;});sheet.getRange(row,1,1,safe.length).setNumberFormat('@').setValues([safe]);}
+function teRows_(name){var sheet=teSheet_(name);if(sheet.getLastRow()<2)return [];var headers=teHeaders_(sheet),columns=TE_TABLES[name].map(function(h){var i=headers.indexOf(h);if(i<0)teFail_(503,name+' 머리글의 '+h+' 열을 확인해 주세요.');return i;});return sheet.getRange(2,1,sheet.getLastRow()-1,headers.length).getValues().map(function(values,i){return {row:i+2,v:columns.map(function(col){var value=values[col];return value===null||value===undefined?'':value instanceof Date?value.toISOString():String(value);})};});}
+function teWrite_(name,row,values,names){
+  var sheet=teSheet_(name),headers=teHeaders_(sheet),map={};TE_TABLES[name].forEach(function(h,i){map[h]=values[i];});
+  if(name==='근태기록'&&headers.indexOf('작업자명')>=0){map['작업자명']=names?names[values[0]]||'미등록 작업자':teWorker_(values[0]).v[1];var units=Number(values[2]),rate=values[3]===''?null:Number(values[3]);map['예상노임']=units===0?0:rate===null?'':Math.round(units*rate);}
+  teSetGrid_(sheet,row,[headers.map(function(h){return map[h]===undefined?'':map[h];})],headers);
+}
 function teAppend_(name,values){teWrite_(name,teSheet_(name).getLastRow()+1,values);}
 function teAudit_(action,id){teAppend_('접근기록',[action,id,new Date().toISOString()]);}
 function teLimit_(scope,max,windowMs){
@@ -123,7 +214,7 @@ function teRoute_(r){
   if(typeof r.path!=='string'||r.path.length>250)teFail_(400,'요청 경로를 확인해 주세요.');
   var u=r.path.split('?'),path=u[0],query={};(u[1]||'').split('&').forEach(function(part){var x=part.split('=');if(x[0])query[decodeURIComponent(x[0])]=decodeURIComponent(x[1]||'');});
   var method=r.method||'GET',p=r.payload||{},w,s,rows,now=new Date().toISOString();
-  if(path==='/config'&&method==='GET')return {rrnEnabled:props.getProperty('COLLECT_RRN')==='true',rrnBasis:props.getProperty('RRN_COLLECTION_BASIS')||'',privacyNotice:props.getProperty('PRIVACY_NOTICE'),registrationEnabled:true,publicKey:props.getProperty('PUBLIC_KEY'),version:'2.0.0'};
+  if(path==='/config'&&method==='GET')return {rrnEnabled:props.getProperty('COLLECT_RRN')==='true',rrnBasis:props.getProperty('RRN_COLLECTION_BASIS')||'',privacyNotice:props.getProperty('PRIVACY_NOTICE'),registrationEnabled:true,publicKey:props.getProperty('PUBLIC_KEY'),version:'2.1.0',features:{monthlySettlement:true}};
   if(path==='/session'&&method==='GET'){
     s=teSession_(r.workerToken,'worker',false);return {worker:s?teWorkerView_(teWorker_(s.v[2])):null,admin:Boolean(teSession_(r.adminToken,'admin',false))};
   }
@@ -174,6 +265,7 @@ function teRoute_(r){
   }
   if(path.indexOf('/admin/')===0){
     teSession_(r.adminToken,'admin',true);
+    if(path==='/admin/reports/monthly'&&method==='POST')return teMonthlyReport_(p.month);
     if(path==='/admin/workers'&&method==='GET'){
       var month=teMonth_(query.month);return {workers:teRows_('작업자').map(function(x){var view=teWorkerView_(x),list=teRecords_(x.v[0],month);view.units=list.reduce(function(n,a){return n+Math.round(a.units*100);},0)/100;view.amount=list.reduce(function(n,a){return n+(a.amount||0);},0);view.unpriced=list.filter(function(a){return a.units>0&&a.amount===null;}).length;return view;})};
     }
