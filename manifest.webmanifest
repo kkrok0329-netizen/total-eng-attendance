@@ -1,0 +1,36 @@
+{
+  "id": "./total-eng-attendance",
+  "name": "TOTAL ENG 근태 관리",
+  "short_name": "공수관리",
+  "description": "작업자 공수·현장·작업내용과 예상 노임 기록",
+  "lang": "ko-KR",
+  "start_url": "./?source=installed",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f6fa",
+  "theme_color": "#003d8e",
+  "categories": [
+    "business",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

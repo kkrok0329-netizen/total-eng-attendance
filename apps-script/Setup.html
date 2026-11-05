@@ -1,0 +1,32 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{font:15px/1.65 sans-serif;margin:22px;color:#15243c}h2{color:#003d8e}label{display:grid;gap:6px;margin:14px 0}input,textarea,button{font:inherit;padding:12px;box-sizing:border-box;width:100%;border:1px solid #b8c8dc;border-radius:9px}button{background:#ed9414;font-weight:bold}textarea{min-height:170px}.choice{display:flex;gap:8px}.choice input{width:22px}#message{white-space:pre-wrap;margin-top:16px}</style>
+<h2>TOTAL ENG 비공개 초기 설정</h2>
+<p>여기에 입력한 비밀번호는 공개 앱 파일에 들어가지 않습니다. 암호화 키는 이 브라우저에서 생성하여 비공개 스크립트 속성에 저장합니다.</p>
+<label>관리자 비밀번호 (8자리 이상)<input id="password" type="password" autocomplete="new-password" minlength="8"></label>
+<label>관리자 비밀번호 다시 입력<input id="confirm" type="password" autocomplete="new-password"></label>
+<label>회사의 개인정보 수집·이용 안내<textarea id="notice" maxlength="2000" placeholder="수집 목적, 항목, 보유기간, 동의 거부 시 안내와 회사 문의처를 입력해 주세요."></textarea></label>
+<label class="choice"><input type="checkbox" id="rrn">주민등록번호 수집 활성화</label>
+<label>활성화하는 경우 수집 근거<input id="basis" placeholder="기본값은 수집하지 않음입니다."></label>
+<button id="save" type="button">키 생성 후 비공개 설정 저장</button><div id="message" role="status"></div>
+<script>
+(()=>{
+ const enc=new TextEncoder(),base64=b=>{let s='';for(const x of new Uint8Array(b))s+=String.fromCharCode(x);return btoa(s);};
+ document.getElementById('save').addEventListener('click',async()=>{
+  const button=document.getElementById('save'),message=document.getElementById('message');button.disabled=true;
+  try{
+   const password=document.getElementById('password').value,notice=document.getElementById('notice').value.trim();
+   if(password.length<8||password!==document.getElementById('confirm').value)throw Error('관리자 비밀번호를 8자리 이상으로 두 번 같게 입력해 주세요.');
+   if(notice.length<10)throw Error('개인정보 안내를 입력해 주세요.');
+   if(document.getElementById('rrn').checked&&document.getElementById('basis').value.trim().length<5)throw Error('주민등록번호 수집 근거를 입력해 주세요.');
+   message.textContent='암호화 키를 만들고 있습니다…';
+   const pair=await crypto.subtle.generateKey({name:'RSA-OAEP',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['encrypt','decrypt']);
+   const publicKey=base64(await crypto.subtle.exportKey('spki',pair.publicKey)),privateKey=await crypto.subtle.exportKey('pkcs8',pair.privateKey);
+   const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),material=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveKey']);
+   const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:600000,hash:'SHA-256'},material,{name:'AES-GCM',length:256},false,['encrypt']);
+   const data=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:enc.encode('TOTAL-ENG-ADMIN-KEY-v1')},key,privateKey);
+   const input={password,notice,collectRrn:document.getElementById('rrn').checked,rrnBasis:document.getElementById('basis').value.trim(),publicKey,wrappedPrivateKey:{version:1,salt:base64(salt),iv:base64(iv),iterations:600000,data:base64(data)}};
+   google.script.run.withSuccessHandler(()=>{document.getElementById('password').value='';document.getElementById('confirm').value='';message.textContent='비공개 설정이 완료되었습니다. 창을 닫고 웹 앱으로 배포해 주세요. 관리자 비밀번호를 잊으면 암호화된 계좌정보를 복구할 수 없으니 안전하게 보관하세요.';}).withFailureHandler(e=>{message.textContent=e.message;button.disabled=false;}).saveInitialSetup(input);
+  }catch(e){message.textContent=e.message;button.disabled=false;}
+ });
+})();
+</script></html>
