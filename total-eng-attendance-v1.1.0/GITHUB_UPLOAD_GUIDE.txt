@@ -1,0 +1,40 @@
+TOTAL ENG 근태 관리 v1.1.0 — GitHub 업로드와 서버 배포
+
+1. artifacts/total-eng-attendance-v1.1.0.zip을 새 폴더에 압축 해제합니다.
+2. GitHub의 kkrok0329-netizen/total-eng-attendance 저장소를 엽니다.
+3. Add file → Upload files를 누릅니다.
+4. ZIP이나 압축 푼 폴더 자체가 아니라 그 안의 파일과 폴더를 올립니다.
+   package.json, render.yaml, public/, server/, scripts/ 등이 저장소 맨 위에 있어야 합니다.
+5. Commit changes를 누릅니다.
+
+주의: 원래 작업 폴더의 .env, data/, backups/는 올리지 않습니다.
+배포 ZIP은 이런 파일 및 실제 관리자 비밀번호·암호화 키가 없는지 검사하여 만들었습니다.
+GitHub 업로드 화면에서는 .gitignore만으로 민감한 파일 업로드를 막아주지 않으니 반드시 ZIP을 푼 폴더에서 올리세요.
+
+GitHub Pages만으로는 이 앱의 로그인과 서버 DB를 실행할 수 없습니다.
+서버 개설은 별도 단계이며 이번 작업에서 실제 서버를 만들거나 결제하지 않았습니다.
+
+Render로 배포할 경우:
+1. Render 계정으로 로그인 후 GitHub 연결 → New → Blueprint를 선택합니다.
+2. 위 저장소와 코드를 올린 브랜치를 선택합니다.
+3. render.yaml에서 서비스와 영구 저장 디스크 설정을 불러옵니다.
+4. DATA_ENCRYPTION_KEY와 ADMIN_PASSWORD에는 로컬 .env에서 같은 이름의 값을 복사합니다.
+   이 값은 Render의 비밀 환경변수 입력란에만 넣고 GitHub 파일이나 채팅에 올리지 않습니다.
+5. PRIVACY_NOTICE에는 회사의 실제 개인정보 수집·이용 안내를 입력합니다.
+6. 서버와 디스크의 요금 및 데이터 보관 지역을 확인한 다음 배포합니다.
+   이 구성은 유료 서버/영구 디스크를 사용합니다.
+7. 배포 후 발급된 https://...onrender.com 주소를 엽니다.
+   별도 도메인 구매 없이 이 주소를 작업자에게 공유할 수 있습니다.
+8. 갤럭시와 아이폰에서 각각 가입·로그인·공수 저장·관리자 조회·앱 설치를 확인합니다.
+
+Render가 제공하는 서비스 주소를 앱이 자동으로 사용합니다.
+별도 도메인을 연결하면 APP_ORIGIN을 https://실제도메인 으로 지정하고 재배포합니다.
+
+로그인: 생년월일 6자리 + 가입할 때 정한 비밀번호 4자리.
+회사 등록코드는 없습니다. 관리자 비밀번호는 서버 환경변수로만 설정합니다.
+테스트 계정과 근태 데이터는 배포 ZIP에 들어 있지 않으므로 서버는 빈 상태에서 시작합니다.
+
+참고:
+https://render.com/docs/blueprint-spec
+https://render.com/docs/disks
+https://render.com/docs/environment-variables

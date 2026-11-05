@@ -1,0 +1,15 @@
+{
+  "name": "total-eng-attendance",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "TOTAL ENG 일용직 근태 관리 PWA",
+  "engines": { "node": ">=24.16.0 <25" },
+  "scripts": {
+    "start": "node server/index.mjs",
+    "test": "node --test --test-concurrency=1 test/*.test.mjs",
+    "setup": "node scripts/setup.mjs",
+    "backup": "node scripts/backup.mjs",
+    "check": "node --check server/index.mjs && node --check server/app.mjs && node --check public/app.js && node --check public/sw.js"
+  }
+}

@@ -1,0 +1,37 @@
+# Creates a paid web service with persistent storage only after you confirm it in Render.
+# Enter the existing local secrets in the Render dashboard; never add their values here.
+services:
+  - type: web
+    name: total-eng-attendance
+    runtime: node
+    plan: starter
+    buildCommand: npm run check
+    startCommand: npm start
+    healthCheckPath: /healthz
+    disk:
+      name: attendance-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: TRUST_PROXY
+        value: "true"
+      - key: DB_PATH
+        value: /var/data/attendance.sqlite
+      - key: BACKUP_DIR
+        value: /var/data/backups
+      - key: DATA_ENCRYPTION_KEY
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: PRIVACY_NOTICE
+        sync: false
+      - key: COLLECT_RRN
+        value: "false"
+      - key: RRN_COLLECTION_BASIS
+        value: ""
