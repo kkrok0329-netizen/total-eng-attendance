@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#003d8e">
+  <meta name="theme-color" content="#082a54">
   <meta name="description" content="TOTAL ENG 작업자 공수와 근태 관리">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://*.googleusercontent.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
   <meta name="robots" content="noindex, nofollow, noarchive">
@@ -11,19 +11,19 @@
   <meta name="apple-mobile-web-app-title" content="공수관리">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="apple-touch-icon" href="./icons/icon-180.png">
-  <link rel="icon" type="image/png" href="./icons/favicon-32.png">
-  <link rel="stylesheet" href="./style.css?v=2.1.0">
+  <link rel="apple-touch-icon" href="./icons/brand-180.png">
+  <link rel="icon" type="image/png" href="./icons/brand-32.png">
+  <link rel="stylesheet" href="./style.css?v=2.2.0">
   <title>TOTAL ENG 근태 관리</title>
-  <script defer src="./config.js?v=2.1.0"></script>
-  <script defer src="./google-api.js?v=2.1.0"></script>
-  <script defer src="./app.js?v=2.1.0"></script>
+  <script defer src="./config.js?v=2.2.0"></script>
+  <script defer src="./google-api.js?v=2.2.0"></script>
+  <script defer src="./app.js?v=2.2.0"></script>
 </head>
 <body>
 <div id="te-attendance">
   <div class="te-phone">
     <header class="te-header">
-      <div class="te-brand"><img src="./icons/logo.png" alt="TOTAL ENG"><button class="te-settings" type="button" data-go="settings" aria-label="설정">설정</button></div>
+      <div class="te-brand"><div class="te-brand-lockup"><img src="./icons/brand-192.png" alt=""><strong>TOTAL ENG</strong></div><button class="te-settings" type="button" data-go="settings" aria-label="설정">설정</button></div>
       <div class="te-heading"><div class="te-eyebrow" id="te-eyebrow">나의 근무 기록</div><h1 id="te-title">공수달력</h1><p id="te-subtitle">오늘도 안전하게 작업하세요.</p></div>
     </header>
     <div id="te-status" role="status" aria-live="polite"></div>
